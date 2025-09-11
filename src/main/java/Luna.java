@@ -21,25 +21,57 @@ public class Luna {
                 System.out.println("\tBye. Hope to see you again soon!");
                 printLine();
                 break;
-            } else if (input.equals("list")) {
-                listTasks(tasks, taskCount);
-            } else if(input.startsWith("mark ")){
-                handleMarkUnmark(input, true);
-            } else if(input.startsWith("unmark ")){
-                handleMarkUnmark(input, false);
-            }else if (input.startsWith("todo ")) {
-                addTodo(input.substring(5));
-            }else if (input.startsWith("deadline ")) {
-                addDeadline(input.substring(9));
-            }else if (input.startsWith("event ")) {
-                addEvent(input.substring(6));
             }
+            handleCommand(input);
             printLine();
         }
         scanner.close();
     }
 
-    private static void addTodo(String description) {
+    private static void handleCommand(String input) {
+        try {
+            String[] parts = input.split(" ", 2);
+            String command = parts[0];
+            String arguments = (parts.length > 1) ? parts[1] : "";
+
+            switch (command) {
+            case "list":
+                listTasks(tasks, taskCount);
+                break;
+            case "mark":
+                if (arguments.isEmpty()) {
+                    throw new LunaException("Please provide a task number to mark.");
+                }
+                handleMarkUnmark("mark " + arguments, true);
+                break;
+            case "unmark":
+                if (arguments.isEmpty()) {
+                    throw new LunaException("Please provide a task number to unmark.");
+                }
+                handleMarkUnmark("unmark " + arguments, false);
+                break;
+            case "todo":
+                addTodo(arguments);
+                break;
+            case "deadline":
+                addDeadline(arguments);
+                break;
+            case "event":
+                addEvent(arguments);
+                break;
+            default:
+                throw new LunaException("I'm sorry, but I don't know what that means :-(");
+            }
+        } catch (LunaException e) {
+            System.out.println("\t OOPS!!! " + e.getMessage());
+        }
+    }
+
+
+    private static void addTodo(String description) throws LunaException {
+        if (description.trim().isEmpty()) {
+            throw new LunaException("The description for a 'todo' cannot be empty. Please provide a task description.");
+        }
         tasks[taskCount] = new ToDo(description);
         taskCount++;
         System.out.println("\tGot it. I've added this task:");
@@ -47,11 +79,10 @@ public class Luna {
         System.out.println("\tNow you have " + taskCount + " tasks in the list.");
     }
 
-    private static void addDeadline(String input) {
+    private static void addDeadline(String input) throws LunaException{
         String[] parts = input.split(" /by ");
-        if (parts.length < 2) {
-            System.out.println("\tInvalid deadline format. Please use: deadline [task] /by [date/time]");
-            return;
+        if (parts.length < 2 || parts[0].trim().isEmpty() || parts[1].trim().isEmpty()) {
+            throw new LunaException("Invalid deadline format. Please use: 'deadline [task] /by [date/time]'.");
         }
         String description = parts[0];
         String date = parts[1];
@@ -62,17 +93,17 @@ public class Luna {
         System.out.println("\tNow you have " + taskCount + " tasks in the list.");
     }
 
-    private static void addEvent(String input) {
+    private static void addEvent(String input) throws LunaException {
         String[] parts = input.split(" /from ");
         if (parts.length < 2) {
-            System.out.println("\tInvalid event format. Please use: event [task] /from [start] /to [end]");
-            return;
+            throw new LunaException("Invalid event format. Missing '/from' or '/to'. " +
+                    "Please use: 'event [task] /from [start] /to [end]'.");
         }
         String description = parts[0];
         String[] timeParts = parts[1].split(" /to ");
-        if (timeParts.length < 2) {
-            System.out.println("\tInvalid event format. Please use: event [task] /from [start] /to [end]");
-            return;
+        if (timeParts.length < 2 || description.trim().isEmpty() || timeParts[0].trim().isEmpty() || timeParts[1].trim().isEmpty()) {
+            throw new LunaException("Invalid event format. " +
+                    "Please ensure all parts are filled: 'event [task] /from [start] /to [end]'.");
         }
         String start = timeParts[0];
         String end = timeParts[1];
@@ -112,6 +143,12 @@ public class Luna {
 
     private static void printLine() {
         System.out.println("\t————————————————————————————————————————");
+    }
+}
+
+class LunaException extends Exception {
+    public LunaException(String message) {
+        super(message);
     }
 }
 
