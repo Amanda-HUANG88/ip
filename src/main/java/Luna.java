@@ -4,14 +4,22 @@ import Luna.task.Event;
 import Luna.task.Task;
 import Luna.task.ToDo;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Luna {
 
+    private static final String FILE_PATH = "./data/luna.txt";
     private static ArrayList<Task> tasks = new ArrayList<>();
 
     public static void main(String[] args) {
+        loadTasksFromFile();
+
         printLine();
         System.out.println("\tHello! I'm Luna");
         System.out.println("\tWhat can I do for you?");
@@ -83,6 +91,7 @@ public class Luna {
         System.out.println("\tGot it. I've added this task:");
         System.out.println("\t  " + tasks.get(tasks.size() - 1));
         System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
+        saveTasksToFile();
     }
 
     private static void addDeadline(String arguments) throws LunaException {
@@ -94,6 +103,7 @@ public class Luna {
         System.out.println("\tGot it. I've added this task:");
         System.out.println("\t  " + tasks.get(tasks.size() - 1));
         System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
+        saveTasksToFile();
     }
 
     private static void addEvent(String arguments) throws LunaException {
@@ -110,6 +120,7 @@ public class Luna {
         System.out.println("\tGot it. I've added this task:");
         System.out.println("\t  " + tasks.get(tasks.size() - 1));
         System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
+        saveTasksToFile();
     }
 
     private static void handleMarkUnmark(String arguments, boolean isMark) throws LunaException {
@@ -124,6 +135,7 @@ public class Luna {
                     System.out.println("\tOK, I've marked this task as not done yet:");
                 }
                 System.out.println("\t  " + tasks.get(taskIndex).toString());
+                saveTasksToFile();
             } else {
                 throw new LunaException("That task number is out of range. Please try again.");
             }
@@ -153,9 +165,80 @@ public class Luna {
             System.out.println("\tNoted. I've removed this task:");
             System.out.println("\t  " + removedTask);
             System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
+            saveTasksToFile();
 
         } catch (NumberFormatException e) {
             throw new LunaException("Please provide a valid task number.");
+        }
+    }
+
+    private static void loadTasksFromFile() {
+        File file = new File(FILE_PATH);
+        File parentDir = file.getParentFile();
+        if (!parentDir.exists()) {
+            parentDir.mkdir();
+        }
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                try {
+                    String[] parts = line.split(" \\| ");
+                    String taskType = parts[0];
+                    boolean isDone = parts[1].equals("1");
+                    String description = parts[2];
+                    Task task = null;
+
+                    switch (taskType) {
+                    case "T":
+                        task = new ToDo(description);
+                        break;
+                    case "D":
+                        String by = parts[3];
+                        task = new Deadline(description, by);
+                        break;
+                    case "E":
+                        String from = parts[3];
+                        String to = parts[4];
+                        task = new Event(description, from, to);
+                        break;
+                    }
+
+                    if (task != null) {
+                        if (isDone) {
+                            task.mark();
+                        }
+                        tasks.add(task);
+                    }
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("Warning: Corrupted task data found in file. Skipping line: " + line);
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("\tNo saved tasks found. Starting with a fresh list.");
+        }
+    }
+
+    private static void saveTasksToFile() {
+        try (FileWriter fw = new FileWriter(FILE_PATH)) {
+            for (Task task : tasks) {
+                String taskString = "";
+                String isDone = task.getStatus();
+
+                if (task instanceof ToDo) {
+                    taskString = String.format("T | %s | %s\n", isDone, task.getDescription());
+                } else if (task instanceof Deadline) {
+                    Deadline deadline = (Deadline) task;
+                    taskString = String.format("D | %s | %s | %s\n", isDone, deadline.getDescription(), deadline.getDate());
+                } else if (task instanceof Event) {
+                    Event event = (Event) task;
+                    taskString = String.format("E | %s | %s | %s | %s\n", isDone, event.getDescription(), event.getStart(), event.getEnd());
+                }
+
+                fw.write(taskString);
+            }
+        } catch (IOException e) {
+            System.out.println("Error saving tasks to file: " + e.getMessage());
         }
     }
 }
