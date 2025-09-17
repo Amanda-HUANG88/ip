@@ -4,12 +4,12 @@ import Luna.task.Event;
 import Luna.task.Task;
 import Luna.task.ToDo;
 
+import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Luna {
 
-    private static Task[] tasks = new Task[100];
-    private static int taskCount = 0;
+    private static ArrayList<Task> tasks = new ArrayList<>();
 
     public static void main(String[] args) {
         printLine();
@@ -42,19 +42,13 @@ public class Luna {
 
             switch (command) {
             case "list":
-                listTasks(tasks, taskCount);
+                listTasks();
                 break;
             case "mark":
-                if (arguments.isEmpty()) {
-                    throw new LunaException("Please provide a task number to mark.");
-                }
-                handleMarkUnmark("mark " + arguments, true);
+                handleMarkUnmark(arguments, true);
                 break;
             case "unmark":
-                if (arguments.isEmpty()) {
-                    throw new LunaException("Please provide a task number to unmark.");
-                }
-                handleMarkUnmark("unmark " + arguments, false);
+                handleMarkUnmark(arguments, false);
                 break;
             case "todo":
                 addTodo(arguments);
@@ -65,91 +59,103 @@ public class Luna {
             case "event":
                 addEvent(arguments);
                 break;
+            case "delete":
+                handleDelete(arguments);
+                break;
             default:
-                throw new LunaException("I'm sorry, but I don't know what that means :-(");
+                System.out.println("\tI'm sorry, but I don't know what that means. Please try again.");
+                break;
             }
         } catch (LunaException e) {
-            System.out.println("\t OOPS!!! " + e.getMessage());
-        }
-    }
-
-
-    private static void addTodo(String description) throws LunaException {
-        if (description.trim().isEmpty()) {
-            throw new LunaException("The description for a 'todo' cannot be empty. Please provide a task description.");
-        }
-        tasks[taskCount] = new ToDo(description);
-        taskCount++;
-        System.out.println("\tGot it. I've added this task:");
-        System.out.println("\t  " + tasks[taskCount - 1].toString());
-        System.out.println("\tNow you have " + taskCount + " tasks in the list.");
-    }
-
-    private static void addDeadline(String input) throws LunaException{
-        String[] parts = input.split(" /by ");
-        if (parts.length < 2 || parts[0].trim().isEmpty() || parts[1].trim().isEmpty()) {
-            throw new LunaException("Invalid deadline format. Please use: 'deadline [task] /by [date/time]'.");
-        }
-        String description = parts[0];
-        String date = parts[1];
-        tasks[taskCount] = new Deadline(description, date);
-        taskCount++;
-        System.out.println("\tGot it. I've added this task:");
-        System.out.println("\t  " + tasks[taskCount - 1].toString());
-        System.out.println("\tNow you have " + taskCount + " tasks in the list.");
-    }
-
-    private static void addEvent(String input) throws LunaException {
-        String[] parts = input.split(" /from ");
-        if (parts.length < 2) {
-            throw new LunaException("Invalid event format. Missing '/from' or '/to'. " +
-                    "Please use: 'event [task] /from [start] /to [end]'.");
-        }
-        String description = parts[0];
-        String[] timeParts = parts[1].split(" /to ");
-        if (timeParts.length < 2 || description.trim().isEmpty() || timeParts[0].trim().isEmpty() || timeParts[1].trim().isEmpty()) {
-            throw new LunaException("Invalid event format. " +
-                    "Please ensure all parts are filled: 'event [task] /from [start] /to [end]'.");
-        }
-        String start = timeParts[0];
-        String end = timeParts[1];
-        tasks[taskCount] = new Event(description, start, end);
-        taskCount++;
-        System.out.println("\tGot it. I've added this task:");
-        System.out.println("\t  " + tasks[taskCount - 1].toString());
-        System.out.println("\tNow you have " + taskCount + " tasks in the list.");
-    }
-
-    private static void handleMarkUnmark(String input, boolean isMark) {
-        try {
-            int taskIndex = Integer.parseInt(input.substring(isMark ? 5 : 7)) - 1;
-            if (taskIndex >= 0 && taskIndex < taskCount) {
-                if (isMark) {
-                    tasks[taskIndex].mark();
-                    System.out.println("\tNice! I've marked this task as done:");
-                } else {
-                    tasks[taskIndex].unmark();
-                    System.out.println("\tOK, I've marked this task as not done yet:");
-                }
-                System.out.println("\t  " + tasks[taskIndex].toString());
-            } else {
-                System.out.println("\tSorry, that task number is out of range. Please try again.");
-            }
-        } catch (NumberFormatException e) {
-            System.out.println("\tPlease provide a valid task number.");
-        }
-    }
-
-    private static void listTasks(Task[] tasks, int taskCount) {
-        System.out.println("\tHere are the tasks in your list:");
-        for (int i = 0; i < taskCount; i++) {
-            System.out.println("\t" + (i + 1) + ". " + tasks[i].toString());
+            System.out.println("\t" + e.getMessage());
         }
     }
 
     private static void printLine() {
-        System.out.println("\t————————————————————————————————————————");
+        System.out.println("\t____________________________________________________________");
+    }
+
+    private static void addTodo(String arguments) throws LunaException {
+        if (arguments.isEmpty()) {
+            throw new LunaException("The description of a todo cannot be empty.");
+        }
+        tasks.add(new ToDo(arguments));
+        System.out.println("\tGot it. I've added this task:");
+        System.out.println("\t  " + tasks.get(tasks.size() - 1));
+        System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
+    }
+
+    private static void addDeadline(String arguments) throws LunaException {
+        String[] parts = arguments.split(" /by ");
+        if (parts.length < 2 || parts[0].isEmpty() || parts[1].isEmpty()) {
+            throw new LunaException("The deadline command format is incorrect. Please use: deadline <description> /by <date>");
+        }
+        tasks.add(new Deadline(parts[0].trim(), parts[1].trim()));
+        System.out.println("\tGot it. I've added this task:");
+        System.out.println("\t  " + tasks.get(tasks.size() - 1));
+        System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
+    }
+
+    private static void addEvent(String arguments) throws LunaException {
+        String[] parts = arguments.split(" /from ");
+        if (parts.length < 2) {
+            throw new LunaException("The event command format is incorrect. Please use: event <description> /from <start> /to <end>");
+        }
+        String description = parts[0].trim();
+        String[] timeParts = parts[1].split(" /to ");
+        if (timeParts.length < 2 || description.isEmpty() || timeParts[0].isEmpty() || timeParts[1].isEmpty()) {
+            throw new LunaException("The event command format is incorrect. Please use: event <description> /from <start> /to <end>");
+        }
+        tasks.add(new Event(description, timeParts[0].trim(), timeParts[1].trim()));
+        System.out.println("\tGot it. I've added this task:");
+        System.out.println("\t  " + tasks.get(tasks.size() - 1));
+        System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
+    }
+
+    private static void handleMarkUnmark(String arguments, boolean isMark) throws LunaException {
+        try {
+            int taskIndex = Integer.parseInt(arguments.trim()) - 1;
+            if (taskIndex >= 0 && taskIndex < tasks.size()) {
+                if (isMark) {
+                    tasks.get(taskIndex).mark();
+                    System.out.println("\tNice! I've marked this task as done:");
+                } else {
+                    tasks.get(taskIndex).unmark();
+                    System.out.println("\tOK, I've marked this task as not done yet:");
+                }
+                System.out.println("\t  " + tasks.get(taskIndex).toString());
+            } else {
+                throw new LunaException("That task number is out of range. Please try again.");
+            }
+        } catch (NumberFormatException e) {
+            throw new LunaException("Please provide a valid task number.");
+        }
+    }
+
+    private static void listTasks() {
+        System.out.println("\tHere are the tasks in your list:");
+        for (int i = 0; i < tasks.size(); i++) {
+            System.out.println("\t" + (i + 1) + ". " + tasks.get(i).toString());
+        }
+    }
+
+    private static void handleDelete(String arguments) throws LunaException {
+        try {
+            int index = Integer.parseInt(arguments.trim()) - 1;
+
+            if (index < 0 || index >= tasks.size()) {
+                throw new LunaException("That task number is out of range. Please try again.");
+            }
+
+            Task removedTask = tasks.get(index);
+            tasks.remove(index);
+
+            System.out.println("\tNoted. I've removed this task:");
+            System.out.println("\t  " + removedTask);
+            System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
+
+        } catch (NumberFormatException e) {
+            throw new LunaException("Please provide a valid task number.");
+        }
     }
 }
-
-
