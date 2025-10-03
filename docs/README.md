@@ -1,7 +1,6 @@
 # Luna Chatbot User Guide
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-V1.2-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/Type-CLI%20Task%20Manager-lightgrey.svg" alt="Type">
 </p>
 
