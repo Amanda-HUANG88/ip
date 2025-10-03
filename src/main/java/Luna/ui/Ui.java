@@ -13,6 +13,10 @@ public class Ui {
     private final Scanner scanner;
     private final String LINE = "\t————————————————————————————————————————";
 
+    /**
+     * Constructor for Ui. Initializes the Scanner for user input.
+     */
+
     public Ui() {
         this.scanner = new Scanner(System.in);
     }
