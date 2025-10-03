@@ -123,6 +123,12 @@ public class Luna {
         }
     }
 
+    /**
+     * Handles the 'delete' command by delegating to TaskList.
+     *
+     * @param arguments The task index (1-based) to delete.
+     */
+
     private void handleDeleteTask(String arguments) {
         if (arguments.isEmpty()) {
             ui.showError("Please provide a task number to delete.");
