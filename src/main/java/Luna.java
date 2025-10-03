@@ -1,244 +1,144 @@
+import Luna.ui.Ui;
+import Luna.storage.Storage;
+import Luna.parser.Parser;
+import Luna.task.TaskList;
 import Luna.exception.LunaException;
-import Luna.task.Deadline;
-import Luna.task.Event;
-import Luna.task.Task;
-import Luna.task.ToDo;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Scanner;
+/**
+ * Luna Class
+ *
+ * Luna is a simple command-line task management chatbot application
+ * that allows users to add, list, mark, and unmark tasks.
+ * It also supports saving and loading tasks to/from a local file.
+ */
 
 public class Luna {
 
     private static final String FILE_PATH = "./data/luna.txt";
-    private static ArrayList<Task> tasks = new ArrayList<>();
+    private Storage storage;
+    private TaskList tasks;
+    private Ui ui;
 
-    public static void main(String[] args) {
-        loadTasksFromFile();
-
-        printLine();
-        System.out.println("\tHello! I'm Luna");
-        System.out.println("\tWhat can I do for you?");
-        printLine();
-
-        Scanner scanner = new Scanner(System.in);
-        String input;
-
-        while (true) {
-            input = scanner.nextLine();
-            printLine();
-            if (input.equals("bye")) {
-                System.out.println("\tBye. Hope to see you again soon!");
-                printLine();
-                break;
-            }
-            handleCommand(input);
-            printLine();
-        }
-        scanner.close();
-    }
-
-    private static void handleCommand(String input) {
+    /**
+     * Constructor for Luna.
+     * Initializes the UI, Storage, and attempts to load tasks.
+     */
+    public Luna() {
+        this.ui = new Ui();
+        this.storage = new Storage(FILE_PATH);
         try {
-            String[] parts = input.split(" ", 2);
-            String command = parts[0];
-            String arguments = (parts.length > 1) ? parts[1] : "";
-
-            switch (command) {
-            case "list":
-                listTasks();
-                break;
-            case "mark":
-                handleMarkUnmark(arguments, true);
-                break;
-            case "unmark":
-                handleMarkUnmark(arguments, false);
-                break;
-            case "todo":
-                addTodo(arguments);
-                break;
-            case "deadline":
-                addDeadline(arguments);
-                break;
-            case "event":
-                addEvent(arguments);
-                break;
-            case "delete":
-                handleDelete(arguments);
-                break;
-            default:
-                System.out.println("\tI'm sorry, but I don't know what that means. Please try again.");
-                break;
-            }
+            this.tasks = new TaskList(storage.load());
         } catch (LunaException e) {
-            System.out.println("\t" + e.getMessage());
+            ui.showLoadingError(e.getMessage());
+            this.tasks = new TaskList();
         }
     }
 
-    private static void printLine() {
-        System.out.println("\t____________________________________________________________");
+    /**
+     * Runs the main logic of the application.
+     * Handles the user interaction loop until the 'bye' command is received.
+     */
+    public void run() {
+        ui.showWelcome();
+        boolean isExit = false;
+
+        while (!isExit) {
+            try {
+                String fullCommand = ui.readCommand();
+                ui.showLine();
+
+                String[] parsedCommand = Parser.parse(fullCommand);
+                String commandType = parsedCommand[0];
+                String arguments = parsedCommand.length > 1 ? parsedCommand[1] : "";
+
+                executeCommand(commandType, arguments);
+
+                isExit = commandType.equals("bye");
+
+            } catch (LunaException e) {
+                ui.showError("OOPS!!! " + e.getMessage());
+            } finally {
+                ui.showLine();
+            }
+        }
     }
 
-    private static void addTodo(String arguments) throws LunaException {
+    /**
+     * Executes the command based on the command type and arguments.
+     *
+     * @param commandType The type of command (e.g., "list", "todo", "bye").
+     * @param arguments The arguments associated with the command.
+     * @throws LunaException If the command execution fails (e.g., invalid format).
+     */
+    private void executeCommand(String commandType, String arguments) throws LunaException {
+        switch (commandType) {
+        case "list":
+            tasks.listTasks(ui);
+            break;
+        case "mark":
+        case "unmark":
+            handleMarkUnmark(commandType, arguments);
+            break;
+        case "todo":
+        case "deadline":
+        case "event":
+            tasks.addTask(commandType, arguments);
+            storage.save(tasks.getTasks());
+            break;
+        case "delete":
+            handleDeleteTask(arguments);
+            storage.save(tasks.getTasks());
+            break;
+        case "bye":
+            ui.showGoodbye();
+            break;
+        default:
+            throw new LunaException("I'm sorry, but I don't know what that means :-(");
+        }
+    }
+
+    /**
+     * Handles the 'mark' and 'unmark' commands.
+     *
+     * @param commandType Must be "mark" or "unmark".
+     * @param arguments The task index to mark/unmark.
+     */
+    private void handleMarkUnmark(String commandType, String arguments) {
         if (arguments.isEmpty()) {
-            throw new LunaException("The description of a todo cannot be empty.");
+            ui.showError("Please provide a task number to " + commandType + ".");
+            return;
         }
-        tasks.add(new ToDo(arguments));
-        System.out.println("\tGot it. I've added this task:");
-        System.out.println("\t  " + tasks.get(tasks.size() - 1));
-        System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
-        saveTasksToFile();
-    }
-
-    private static void addDeadline(String arguments) throws LunaException {
-        String[] parts = arguments.split(" /by ");
-        if (parts.length < 2 || parts[0].isEmpty() || parts[1].isEmpty()) {
-            throw new LunaException("The deadline command format is incorrect. Please use: deadline <description> /by <date>");
-        }
-        tasks.add(new Deadline(parts[0].trim(), parts[1].trim()));
-        System.out.println("\tGot it. I've added this task:");
-        System.out.println("\t  " + tasks.get(tasks.size() - 1));
-        System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
-        saveTasksToFile();
-    }
-
-    private static void addEvent(String arguments) throws LunaException {
-        String[] parts = arguments.split(" /from ");
-        if (parts.length < 2) {
-            throw new LunaException("The event command format is incorrect. Please use: event <description> /from <start> /to <end>");
-        }
-        String description = parts[0].trim();
-        String[] timeParts = parts[1].split(" /to ");
-        if (timeParts.length < 2 || description.isEmpty() || timeParts[0].isEmpty() || timeParts[1].isEmpty()) {
-            throw new LunaException("The event command format is incorrect. Please use: event <description> /from <start> /to <end>");
-        }
-        tasks.add(new Event(description, timeParts[0].trim(), timeParts[1].trim()));
-        System.out.println("\tGot it. I've added this task:");
-        System.out.println("\t  " + tasks.get(tasks.size() - 1));
-        System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
-        saveTasksToFile();
-    }
-
-    private static void handleMarkUnmark(String arguments, boolean isMark) throws LunaException {
         try {
-            int taskIndex = Integer.parseInt(arguments.trim()) - 1;
-            if (taskIndex >= 0 && taskIndex < tasks.size()) {
-                if (isMark) {
-                    tasks.get(taskIndex).mark();
-                    System.out.println("\tNice! I've marked this task as done:");
-                } else {
-                    tasks.get(taskIndex).unmark();
-                    System.out.println("\tOK, I've marked this task as not done yet:");
-                }
-                System.out.println("\t  " + tasks.get(taskIndex).toString());
-                saveTasksToFile();
-            } else {
-                throw new LunaException("That task number is out of range. Please try again.");
-            }
+            // Task index in the list is 1-based, array index is 0-based
+            int taskIndex = Integer.parseInt(arguments) - 1;
+            tasks.markUnmarkTask(taskIndex, commandType.equals("mark"));
+            storage.save(tasks.getTasks()); // Save changes after marking/unmarking
         } catch (NumberFormatException e) {
-            throw new LunaException("Please provide a valid task number.");
+            ui.showError("Please provide a valid task number.");
+        } catch (LunaException e) {
+            ui.showError(e.getMessage());
         }
     }
 
-    private static void listTasks() {
-        System.out.println("\tHere are the tasks in your list:");
-        for (int i = 0; i < tasks.size(); i++) {
-            System.out.println("\t" + (i + 1) + ". " + tasks.get(i).toString());
+    private void handleDeleteTask(String arguments) {
+        if (arguments.isEmpty()) {
+            ui.showError("Please provide a task number to delete.");
+            return;
         }
-    }
-
-    private static void handleDelete(String arguments) throws LunaException {
         try {
-            int index = Integer.parseInt(arguments.trim()) - 1;
-
-            if (index < 0 || index >= tasks.size()) {
-                throw new LunaException("That task number is out of range. Please try again.");
-            }
-
-            Task removedTask = tasks.get(index);
-            tasks.remove(index);
-
-            System.out.println("\tNoted. I've removed this task:");
-            System.out.println("\t  " + removedTask);
-            System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
-            saveTasksToFile();
-
+            int taskIndex = Integer.parseInt(arguments) - 1;
+            tasks.deleteTask(taskIndex);
         } catch (NumberFormatException e) {
-            throw new LunaException("Please provide a valid task number.");
+            ui.showError("Please provide a valid task number.");
+        } catch (LunaException e) {
+            ui.showError(e.getMessage());
         }
     }
 
-    private static void loadTasksFromFile() {
-        File file = new File(FILE_PATH);
-        File parentDir = file.getParentFile();
-        if (!parentDir.exists()) {
-            parentDir.mkdir();
-        }
-
-        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                try {
-                    String[] parts = line.split(" \\| ");
-                    String taskType = parts[0];
-                    boolean isDone = parts[1].equals("1");
-                    String description = parts[2];
-                    Task task = null;
-
-                    switch (taskType) {
-                    case "T":
-                        task = new ToDo(description);
-                        break;
-                    case "D":
-                        String by = parts[3];
-                        task = new Deadline(description, by);
-                        break;
-                    case "E":
-                        String from = parts[3];
-                        String to = parts[4];
-                        task = new Event(description, from, to);
-                        break;
-                    }
-
-                    if (task != null) {
-                        if (isDone) {
-                            task.mark();
-                        }
-                        tasks.add(task);
-                    }
-                } catch (ArrayIndexOutOfBoundsException e) {
-                    System.out.println("Warning: Corrupted task data found in file. Skipping line: " + line);
-                }
-            }
-        } catch (IOException e) {
-            System.out.println("\tNo saved tasks found. Starting with a fresh list.");
-        }
-    }
-
-    private static void saveTasksToFile() {
-        try (FileWriter fw = new FileWriter(FILE_PATH)) {
-            for (Task task : tasks) {
-                String taskString = "";
-                String isDone = task.getStatus();
-
-                if (task instanceof ToDo) {
-                    taskString = String.format("T | %s | %s\n", isDone, task.getDescription());
-                } else if (task instanceof Deadline) {
-                    Deadline deadline = (Deadline) task;
-                    taskString = String.format("D | %s | %s | %s\n", isDone, deadline.getDescription(), deadline.getDate());
-                } else if (task instanceof Event) {
-                    Event event = (Event) task;
-                    taskString = String.format("E | %s | %s | %s | %s\n", isDone, event.getDescription(), event.getStart(), event.getEnd());
-                }
-
-                fw.write(taskString);
-            }
-        } catch (IOException e) {
-            System.out.println("Error saving tasks to file: " + e.getMessage());
-        }
+    /**
+     * Main method to start the Luna application.
+     */
+    public static void main(String[] args) {
+        new Luna().run();
     }
 }
