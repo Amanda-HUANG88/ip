@@ -89,6 +89,9 @@ public class Luna {
             handleDeleteTask(arguments);
             storage.save(tasks.getTasks());
             break;
+        case "find":
+            handleFindTask(arguments);
+            break;
         case "bye":
             ui.showGoodbye();
             break;
@@ -133,6 +136,19 @@ public class Luna {
         } catch (LunaException e) {
             ui.showError(e.getMessage());
         }
+    }
+
+    /**
+     * Handles the 'find' command.
+     *
+     * @param arguments The keyword to search for.
+     */
+    private void handleFindTask(String arguments) throws LunaException {
+        if (arguments.trim().isEmpty()) {
+            ui.showError("Please provide a keyword to search for.");
+            return;
+        }
+        tasks.findTasks(arguments, ui);
     }
 
     /**

@@ -28,8 +28,11 @@ public class Parser {
         String[] parts = trimmedCommand.split(" ", 2);
         String command = parts[0].toLowerCase();
 
-        if (command.equals("mark") || command.equals("unmark") || command.equals("delete")) {
+        if (command.equals("mark") || command.equals("unmark") || command.equals("delete") || command.equals("find")) {
             if (parts.length < 2 || parts[1].trim().isEmpty()) {
+                if (command.equals("find")) {
+                    throw new LunaException("Please provide a keyword to search for.");
+                }
                 throw new LunaException("Please provide a task number to " + command + ".");
             }
         }
