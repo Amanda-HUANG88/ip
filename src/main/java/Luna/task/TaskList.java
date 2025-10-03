@@ -115,4 +115,31 @@ public class TaskList {
         System.out.println("\t  " + taskToDelete.toString());
         System.out.println("\tNow you have " + tasks.size() + " tasks in the list.");
     }
+
+    /**
+     * Searches the task list for tasks containing the specified keyword in their description.
+     * Displays the matching tasks to the user via the Ui.
+     *
+     * @param keyword The string to search for within task descriptions.
+     * @param ui The Ui object to handle output.
+     */
+    public void findTasks(String keyword, Ui ui) {
+        ArrayList<Task> matchingTasks = new ArrayList<>();
+
+        for (Task task : tasks) {
+            if (task.getDescription().toLowerCase().contains(keyword.toLowerCase())) {
+                matchingTasks.add(task);
+            }
+        }
+
+        if (matchingTasks.isEmpty()) {
+            System.out.println("\tSorry, no tasks match your search keyword: '" + keyword + "'.");
+        } else {
+            System.out.println("\tHere are the matching tasks in your list:");
+            // Use 1-based index
+            for (int i = 0; i < matchingTasks.size(); i++) {
+                System.out.println("\t" + (i + 1) + "." + matchingTasks.get(i).toString());
+            }
+        }
+    }
 }
