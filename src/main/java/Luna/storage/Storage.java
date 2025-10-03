@@ -22,9 +22,21 @@ import java.util.ArrayList;
 public class Storage {
     private final String filePath;
 
+    /**
+     * Constructor for Storage.
+     *
+     * @param filePath The path to the file where tasks are saved (e.g., "./data/luna.txt").
+     */
     public Storage(String filePath) {
         this.filePath = filePath;
     }
+
+    /**
+     * Loads tasks from the file. It creates the data directory if it doesn't exist.
+     *
+     * @return An ArrayList of Task objects loaded from the file.
+     * @throws LunaException If the file cannot be read or task data is corrupted severely.
+     */
 
     public ArrayList<Task> load() throws LunaException {
         ArrayList<Task> tasks = new ArrayList<>();
@@ -100,6 +112,12 @@ public class Storage {
         return task;
     }
 
+    /**
+     * Saves the current list of tasks to the file by converting Task objects
+     * into the specific file format.
+     *
+     * @param tasks The list of tasks to be saved.
+     */
     public void save(ArrayList<Task> tasks) {
         try (FileWriter fw = new FileWriter(filePath)) {
             for (Task task : tasks) {
